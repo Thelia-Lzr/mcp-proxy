@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Proxy Client - Browser Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        .config {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .config input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .tools-list {
+            list-style: none;
+            padding: 0;
+        }
+        .tool-item {
+            background: #f9f9f9;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            border-left: 3px solid #007bff;
+        }
+        .tool-name {
+            font-weight: bold;
+            color: #007bff;
+        }
+        .output {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .error {
+            color: #dc3545;
+        }
+        .success {
+            color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔌 MCP Proxy Client - Browser Example</h1>
+    
+    <div class="container">
+        <h2>Configuration</h2>
+        <div class="config">
+            <label>Proxy URL:</label>
+            <input type="text" id="proxyUrl" value="http://localhost:8000" placeholder="http://localhost:8000">
+            
+            <label>Proxy Token:</label>
+            <input type="password" id="proxyToken" value="" placeholder="your_secure_proxy_token">
+            
+            <label>MCP Server URL:</label>
+            <input type="text" id="mcpServerUrl" value="" placeholder="http://your-mcp-server.com">
+            
+            <label>MCP Token (Optional):</label>
+            <input type="password" id="mcpToken" value="" placeholder="optional_mcp_token">
+        </div>
+        
+        <button onclick="testConnection()">Test Connection</button>
+        <button onclick="listTools()">List Tools</button>
+        <button onclick="clearOutput()">Clear Output</button>
+    </div>
+    
+    <div class="container" id="toolsContainer" style="display: none;">
+        <h2>Available Tools</h2>
+        <ul class="tools-list" id="toolsList"></ul>
+    </div>
+    
+    <div class="container">
+        <h2>Output</h2>
+        <div class="output" id="output">Ready. Configure your settings above and click "Test Connection" or "List Tools".</div>
+    </div>
+
+    <script>
+        function getConfig() {
+            return {
+                proxyUrl: document.getElementById('proxyUrl').value,
+                proxyToken: document.getElementById('proxyToken').value,
+                mcpServerUrl: document.getElementById('mcpServerUrl').value,
+                mcpToken: document.getElementById('mcpToken').value,
+            };
+        }
+
+        function log(message, type = 'info') {
+            const output = document.getElementById('output');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : '';
+            output.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearOutput() {
+            document.getElementById('output').innerHTML = '';
+        }
+
+        async function makeRequest(method, params = {}) {
+            const config = getConfig();
+            
+            if (!config.proxyUrl || !config.proxyToken || !config.mcpServerUrl) {
+                log('Error: Please fill in all required fields', 'error');
+                return null;
+            }
+
+            try {
+                const response = await fetch(`${config.proxyUrl}/proxy`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Proxy-Token': config.proxyToken,
+                    },
+                    body: JSON.stringify({
+                        mcp_server_url: config.mcpServerUrl,
+                        mcp_token: config.mcpToken || undefined,
+                        method: method,
+                        params: params,
+                        jsonrpc: '2.0',
+                        id: Date.now(),
+                    }),
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+
+                const result = await response.json();
+
+                if (result.error) {
+                    throw new Error(`MCP Error ${result.error.code}: ${result.error.message}`);
+                }
+
+                return result.result;
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+                return null;
+            }
+        }
+
+        async function testConnection() {
+            log('Testing connection...');
+            const result = await makeRequest('ping');
+            
+            if (result !== null) {
+                log('Connection successful! ✓', 'success');
+            }
+        }
+
+        async function listTools() {
+            log('Fetching tools list...');
+            const result = await makeRequest('tools/list');
+            
+            if (result && result.tools) {
+                const tools = result.tools;
+                log(`Found ${tools.length} tools ✓`, 'success');
+                
+                // Display tools
+                const toolsList = document.getElementById('toolsList');
+                const toolsContainer = document.getElementById('toolsContainer');
+                
+                toolsList.innerHTML = '';
+                tools.forEach(tool => {
+                    const li = document.createElement('li');
+                    li.className = 'tool-item';
+                    li.innerHTML = `
+                        <div class="tool-name">${tool.name}</div>
+                        <div>${tool.description || 'No description'}</div>
+                    `;
+                    toolsList.appendChild(li);
+                });
+                
+                toolsContainer.style.display = 'block';
+                
+                // Log tools to output
+                log('Tools:');
+                tools.forEach(tool => {
+                    log(`  - ${tool.name}: ${tool.description || 'No description'}`);
+                });
+            }
+        }
+
+        // Initialize
+        log('MCP Proxy Client initialized. Configure your settings and test the connection.');
+    </script>
+</body>
+</html>
