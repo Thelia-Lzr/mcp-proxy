@@ -2,9 +2,12 @@
 
 A proxy server that forwards MCP (Model Context Protocol) requests from frontend applications to MCP servers, with authentication and CORS support.
 
+⚠️ **Security Notice**: This proxy forwards requests to user-specified URLs. Please review [SECURITY.md](SECURITY.md) for important security considerations before deployment.
+
 ## Features
 
 - 🔒 **Authentication**: Secure proxy token system to control access
+- 🛡️ **SSRF Protection**: URL validation to prevent access to internal networks
 - 🔄 **Request Forwarding**: Forward HTTP and WebSocket MCP requests
 - 🌐 **CORS Support**: Enable cross-origin requests from frontend applications
 - 📡 **WebSocket Support**: Real-time bidirectional communication
@@ -284,3 +287,7 @@ MIT
 ## Support
 
 For issues and questions, please open an issue on GitHub.
+
+## Additional Documentation
+
+- [SECURITY.md](SECURITY.md) - Comprehensive security documentation and best practices
