@@ -15,7 +15,7 @@ const config = {
 };
 
 async function main() {
-  console.log('=' .repeat(60));
+  console.log('='.repeat(60));
   console.log('MCP Proxy Client - TypeScript Example');
   console.log('='.repeat(60));
 

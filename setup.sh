@@ -28,7 +28,15 @@ if [ ! -f .env ]; then
     echo ""
     echo "Generating a random proxy token for you..."
     RANDOM_TOKEN=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
-    sed -i "s/your_secure_proxy_token_here/$RANDOM_TOKEN/" .env
+    # Use a more portable approach
+    python3 << EOF
+import sys
+with open('.env', 'r') as f:
+    content = f.read()
+content = content.replace('your_secure_proxy_token_here', '$RANDOM_TOKEN')
+with open('.env', 'w') as f:
+    f.write(content)
+EOF
     echo "✓ Generated random PROXY_TOKEN: $RANDOM_TOKEN"
     echo "  (You can change this in .env file)"
 else
