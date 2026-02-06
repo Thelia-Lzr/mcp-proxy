@@ -1,5 +1,7 @@
 # MCP Proxy
 
+[中文文档](README_CN.md) | English
+
 A proxy server that forwards MCP (Model Context Protocol) requests from frontend applications to MCP servers, with authentication and CORS support.
 
 ⚠️ **Security Notice**: This proxy forwards requests to user-specified URLs. Please review [SECURITY.md](SECURITY.md) for important security considerations before deployment.
