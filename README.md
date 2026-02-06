@@ -233,10 +233,32 @@ The client supports all standard MCP protocol methods:
 
 ⚠️ **Important Security Notes:**
 
+### Authentication
 1. **Keep your PROXY_TOKEN secure**: This token controls access to your proxy server.
-2. **Use HTTPS in production**: Never send tokens over unencrypted HTTP in production.
-3. **Configure CORS properly**: Update the CORS settings in `server.py` for production use.
-4. **Validate MCP tokens**: Ensure MCP server tokens are properly secured.
+2. **Use strong tokens**: Generate cryptographically secure random tokens (minimum 32 characters).
+3. **Rotate tokens regularly**: Change your PROXY_TOKEN periodically.
+
+### Network Security
+1. **Use HTTPS in production**: Never send tokens over unencrypted HTTP in production.
+2. **Configure CORS properly**: Update the CORS settings in `server.py` for production use.
+3. **Firewall rules**: Restrict access to the proxy server to trusted IP addresses.
+
+### URL Validation
+The proxy implements the following security measures to prevent SSRF (Server-Side Request Forgery) attacks:
+
+- **Scheme validation**: Only allows http, https, ws, and wss protocols
+- **Blocked hosts**: Prevents access to localhost, 127.0.0.1, and other internal addresses
+- **Private IP blocking**: Blocks requests to private IP ranges (10.x.x.x, 192.168.x.x, 172.16.x.x)
+- **Metadata service blocking**: Prevents access to cloud metadata services (e.g., 169.254.169.254)
+
+**Important**: Despite these protections, this proxy should only be accessed by trusted users. The nature of a proxy server means it forwards requests to external URLs, which inherently carries SSRF risks.
+
+### Best Practices
+1. **Whitelist MCP servers**: If possible, configure a whitelist of allowed MCP server URLs
+2. **Monitor logs**: Regularly review proxy logs for suspicious activity
+3. **Rate limiting**: Consider implementing rate limiting to prevent abuse
+4. **Access control**: Use network-level access controls (VPN, IP whitelisting)
+5. **Regular updates**: Keep all dependencies up to date
 
 ## Development
 

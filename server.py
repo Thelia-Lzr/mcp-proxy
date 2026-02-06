@@ -9,6 +9,7 @@ import os
 import json
 import logging
 from typing import Optional, Dict, Any
+from urllib.parse import urlparse
 from fastapi import FastAPI, HTTPException, Header, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -41,6 +42,26 @@ PROXY_TOKEN = os.getenv("PROXY_TOKEN", "")
 if not PROXY_TOKEN:
     logger.warning("PROXY_TOKEN not set in environment variables!")
 
+# Security: Allowed URL schemes for MCP servers
+ALLOWED_SCHEMES = {"http", "https", "ws", "wss"}
+
+# Security: Blocked hosts to prevent SSRF attacks (internal/private networks)
+BLOCKED_HOSTS = {
+    "localhost", "127.0.0.1", "0.0.0.0",
+    "169.254.169.254",  # AWS metadata service
+    "[::1]",  # IPv6 localhost
+}
+
+# Security: Blocked network ranges (private networks)
+def is_private_ip(ip_str: str) -> bool:
+    """Check if IP address is in private range"""
+    try:
+        import ipaddress
+        ip = ipaddress.ip_address(ip_str)
+        return ip.is_private or ip.is_loopback or ip.is_link_local
+    except ValueError:
+        return False
+
 # Request Models
 class MCPRequest(BaseModel):
     """MCP request model"""
@@ -59,6 +80,52 @@ def verify_proxy_token(proxy_token: Optional[str]) -> bool:
         logger.warning("No PROXY_TOKEN configured, allowing all requests")
         return True
     return proxy_token == PROXY_TOKEN
+
+
+# Security helper
+def validate_url(url: str) -> bool:
+    """
+    Validate URL to prevent SSRF attacks
+    
+    Note: This is a proxy server designed to forward requests to external MCP servers.
+    URL validation helps prevent access to internal/private networks, but cannot
+    completely eliminate SSRF risks. Only allow trusted users to access this proxy.
+    """
+    try:
+        parsed = urlparse(url)
+        
+        # Check scheme
+        if parsed.scheme not in ALLOWED_SCHEMES:
+            logger.warning(f"Blocked URL with invalid scheme: {parsed.scheme}")
+            return False
+        
+        # Check for blocked hosts
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+        
+        hostname_lower = hostname.lower()
+        
+        # Check explicit blocked hosts
+        if hostname_lower in BLOCKED_HOSTS:
+            logger.warning(f"Blocked access to restricted host: {hostname}")
+            return False
+        
+        # Check if hostname resolves to private IP
+        if is_private_ip(hostname):
+            logger.warning(f"Blocked access to private IP: {hostname}")
+            return False
+        
+        # Additional check: block common internal domains
+        if any(keyword in hostname_lower for keyword in ["internal", "local", "intranet"]):
+            logger.warning(f"Blocked access to internal domain: {hostname}")
+            return False
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error validating URL: {str(e)}")
+        return False
 
 
 # Routes
@@ -97,6 +164,14 @@ async def proxy_request(
     if not verify_proxy_token(proxy_token):
         logger.warning("Invalid proxy token provided")
         raise HTTPException(status_code=401, detail="Invalid proxy token")
+    
+    # Validate MCP server URL for security
+    if not validate_url(request.mcp_server_url):
+        logger.warning(f"Invalid or blocked MCP server URL: {request.mcp_server_url}")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid MCP server URL: URL scheme must be http/https and cannot target private/internal networks"
+        )
     
     # Prepare the request to the MCP server
     headers = {
@@ -173,6 +248,12 @@ async def websocket_proxy(websocket: WebSocket):
     
     if not mcp_server_url:
         await websocket.close(code=1002, reason="MCP server URL required")
+        return
+    
+    # Validate MCP server URL for security
+    if not validate_url(mcp_server_url):
+        logger.warning(f"Invalid or blocked WebSocket MCP server URL: {mcp_server_url}")
+        await websocket.close(code=1002, reason="Invalid MCP server URL")
         return
     
     # Convert http/https to ws/wss
