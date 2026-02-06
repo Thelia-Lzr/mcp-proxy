@@ -3,6 +3,14 @@
 ## Overview
 This MCP proxy server has been designed with security in mind, but users must understand the inherent security considerations when running a proxy service.
 
+## Dependency Security
+
+All dependencies are kept up-to-date with the latest security patches:
+- **FastAPI 0.109.1**: Patched version fixing ReDoS vulnerability in Content-Type header (CVE in versions <= 0.109.0)
+- All other dependencies verified against GitHub Advisory Database
+
+**Important**: Regularly update dependencies to receive security patches. Run `pip install --upgrade -r requirements.txt` periodically.
+
 ## Security Measures Implemented
 
 ### 1. Authentication
