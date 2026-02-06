@@ -64,6 +64,31 @@ npm install
 npm run build
 ```
 
+### Quick Setup (Automated)
+
+Run the setup script to automatically install dependencies and configure the environment:
+
+```bash
+./setup.sh
+```
+
+### Docker Deployment
+
+Using Docker:
+```bash
+# Set your proxy token
+export PROXY_TOKEN=your_secure_token_here
+
+# Build and run
+docker-compose up -d
+```
+
+Or manually:
+```bash
+docker build -t mcp-proxy .
+docker run -p 8000:8000 -e PROXY_TOKEN=your_secure_token_here mcp-proxy
+```
+
 ## Usage
 
 ### Server Configuration
