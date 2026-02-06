@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  mcp-proxy:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - PROXY_TOKEN=${PROXY_TOKEN}
+      - HOST=0.0.0.0
+      - PORT=8000
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
